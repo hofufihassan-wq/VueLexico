@@ -81,7 +81,11 @@ export async function runJsTests(source, spec = {}) {
     }
     try {
       let actual = fn(...clone(c.args || []))
-      if (isThenable(actual)) actual = await withTimeout(Promise.resolve(actual), 1500)
+      if (isThenable(actual)) {
+        const p = Promise.resolve(actual)
+        await run.drain()
+        actual = await withTimeout(p, 1500)
+      }
       const pass = deepEqual(actual, c.expect)
       results.push({ title, pass, expected: show(c.expect), actual: show(actual), message: pass ? '' : `النتيجة ${show(actual)} بينما المتوقع ${show(c.expect)}` })
     } catch (e) {

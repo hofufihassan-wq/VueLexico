@@ -22,6 +22,7 @@ self.onmessage = async (ev) => {
       return
     }
     const result = await execute(inst.code, inst.meta, { patchPromise: true, trackUnhandled: true, limits })
+    delete result.drain
     result.meta = inst.meta
     self.postMessage({ id, result })
   } catch (e) {

@@ -340,23 +340,8 @@ export async function execute(code, meta, options = {}) {
     pushEvent({ type: 'error', error })
   }
 
-  let status = 'ok'
-  let mainDone = false
-  let exportsObj = null
-  try {
-    // الوضع المتساهل مقصود: يطابق سلوك السكربتات العادية في المتصفح
-    // eslint-disable-next-line no-new-func
-    const runner = new Function('__t', 'console', 'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval', 'queueMicrotask', 'globalThis', 'self', 'window',
-      `return (async () => {\n${code}\n})()`)
-    if (options.trackUnhandled && typeof globalThis.addEventListener === 'function') {
-      globalThis.addEventListener('unhandledrejection', (ev) => { ev.preventDefault?.(); reportError(ev.reason) })
-    }
-    const sandboxGlobal = Object.create(null)
-    const p = runner(__t, fakeConsole, fakeSetTimeout, fakeSetInterval, clearTimer, clearTimer, fakeQueueMicrotask, sandboxGlobal, sandboxGlobal, undefined)
-    phase = 'micro'
-    p.then(() => { mainDone = true; exportsObj = __t.exportsGetter ? __t.exportsGetter() : null }, (e) => { mainDone = true; reportError(e) })
-
-    // حلقة الأحداث: نترك المهام الدقيقة تنتهي ثم ننفّذ المؤقت الأقرب
+  // حلقة الأحداث: نترك المهام الدقيقة تنتهي ثم ننفّذ المؤقت الأقرب موعدًا
+  async function drain() {
     for (;;) {
       await macrotask()
       if (error && error.limit) break
@@ -379,6 +364,25 @@ export async function execute(code, meta, options = {}) {
       if (t.repeat) { t.due = clock + Math.max(1, t.delay); t.seq = ++timerSeq; timers.push(t) }
       phase = 'micro'
     }
+  }
+
+  let status = 'ok'
+  let mainDone = false
+  let exportsObj = null
+  try {
+    // الوضع المتساهل مقصود: يطابق سلوك السكربتات العادية في المتصفح
+    // eslint-disable-next-line no-new-func
+    const runner = new Function('__t', 'console', 'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval', 'queueMicrotask', 'globalThis', 'self', 'window',
+      `return (async () => {\n${code}\n})()`)
+    if (options.trackUnhandled && typeof globalThis.addEventListener === 'function') {
+      globalThis.addEventListener('unhandledrejection', (ev) => { ev.preventDefault?.(); reportError(ev.reason) })
+    }
+    const sandboxGlobal = Object.create(null)
+    const p = runner(__t, fakeConsole, fakeSetTimeout, fakeSetInterval, clearTimer, clearTimer, fakeQueueMicrotask, sandboxGlobal, sandboxGlobal, undefined)
+    phase = 'micro'
+    p.then(() => { mainDone = true; exportsObj = __t.exportsGetter ? __t.exportsGetter() : null }, (e) => { mainDone = true; reportError(e) })
+
+    await drain()
     await macrotask()
   } catch (e) {
     reportError(e)
@@ -400,5 +404,7 @@ export async function execute(code, meta, options = {}) {
     steps,
     exports: exportsObj,
     frames: [...frameInfo.values()],
+    // يُستخدم في التصحيح: تشغيل المؤقتات التي جدولتها دوال المتعلّم بعد انتهاء البرنامج
+    drain,
   }
 }

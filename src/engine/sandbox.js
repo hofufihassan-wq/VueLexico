@@ -105,7 +105,7 @@ var runChecks=function(list){
 window.addEventListener('message',function(e){
   if(e.source!==parent)return;var d=e.data||{};if(d.__satr!==TOKEN)return;
   if(d.type==='set-style'){var s=document.getElementById('__satr_style');if(s)s.textContent=d.css}
-  if(d.type==='run-checks'){runChecks(d.checks||[]).then(function(results){post('check-results',{results:results,runId:d.runId})})}
+  if(d.type==='run-checks'){api.files=d.files||{};runChecks(d.checks||[]).then(function(results){post('check-results',{results:results,runId:d.runId})})}
 });
 window.addEventListener('load',function(){post('loaded',{})});
 })();`
@@ -137,7 +137,7 @@ function processInlineScripts(html, syntaxErrors) {
 }
 
 function head(token, origin, includeVue) {
-  return `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${escapeAttr(csp(origin))}"><meta name="viewport" content="width=device-width, initial-scale=1"><script>window.__satrToken=${JSON.stringify(token)};${bridge(token)}</script>${includeVue ? `<script src="${origin}/vendor/vue.global.prod.js"></script>` : ''}`
+  return `<meta charset="utf-8" data-satr><meta http-equiv="Content-Security-Policy" content="${escapeAttr(csp(origin))}" data-satr><meta name="viewport" content="width=device-width, initial-scale=1" data-satr><script data-satr>window.__satrToken=${JSON.stringify(token)};${bridge(token)}</script>${includeVue ? `<script src="${origin}/vendor/vue.global.prod.js" data-satr></script>` : ''}`
 }
 
 function vendorOrigin() {
@@ -155,12 +155,12 @@ export function buildWebDoc({ html = '', css = '', js = '' }, { token, vue = fal
   const syntaxErrors = []
   const includeVue = vue || /\bVue\s*\./.test(html + '\n' + js)
   let body = processInlineScripts(html, syntaxErrors)
-  const style = `<style id="__satr_style">${css.replace(/<\/style/gi, '<\\/style')}</style>`
+  const style = `<style id="__satr_style" data-satr>${css.replace(/<\/style/gi, '<\\/style')}</style>`
   let script = ''
   if (js.trim()) {
     const r = instrumentScript(js, 'script.js', 0)
     if (r.syntax) syntaxErrors.push({ ...r.syntax, file: 'script.js' })
-    script = `<script>${r.code.replace(/<\/script/gi, '<\\/script')}</script>`
+    script = `<script data-satr-file="script.js">${r.code.replace(/<\/script/gi, '<\\/script')}</script>`
   }
   const hd = head(token, origin, includeVue).replace(`${origin}/vendor`, `${base}/vendor`)
   let doc
@@ -172,7 +172,8 @@ export function buildWebDoc({ html = '', css = '', js = '' }, { token, vue = fal
     doc = /<\/head>/i.test(doc) ? doc.replace(/<\/head>/i, style + '</head>') : doc.replace(hd, hd + style)
     doc = /<\/body>/i.test(doc) ? doc.replace(/<\/body>(?![\s\S]*<\/body>)/i, script + '</body>') : doc + script
   } else {
-    doc = `<!doctype html><html lang="ar" dir="rtl"><head>${hd}${style}</head><body>${body}${script}</body></html>`
+    // غلاف للمقاطع: بلا lang/dir حتى لا تنجح فحوص تتطلب أن يكتبها المتعلّم بنفسه
+    doc = `<!doctype html><html data-satr-wrap><head>${hd}<style data-satr>html[data-satr-wrap]{direction:rtl}</style>${style}</head><body>${body}${script}</body></html>`
   }
   return { doc, syntaxErrors }
 }
