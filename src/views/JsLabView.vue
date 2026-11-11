@@ -107,7 +107,8 @@ const history = computed(() => {
     const k = names.indexOf(watchName.value)
     if (k === -1) continue
     const v = ev.vars[k]
-    const text = v.t === 'tdz' ? '—' : toText(v, ev.heap, 1, false)
+    if (v.t === 'tdz') continue // قبل سطر التعريف: ليست قيمة بعد
+    const text = toText(v, ev.heap, 1, false)
     if (text !== last) { out.push({ line: ev.line, text, step: steps.value.indexOf(si) }); last = text }
   }
   return out
