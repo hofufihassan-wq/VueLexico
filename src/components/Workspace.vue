@@ -158,7 +158,7 @@ defineExpose({ run, runChecks, setStyle: (css) => preview.value?.setStyle(css) }
         <button v-if="mode !== 'js'" class="toggle" @click="consoleOpen = !consoleOpen">
           {{ consoleOpen ? 'إخفاء الطرفية' : 'إظهار الطرفية' }}<span v-if="errors.length" class="err-n">{{ errors.length }}</span>
         </button>
-        <ConsolePanel v-show="consoleOpen || mode === 'js'" :logs="logs" :errors="errors" :empty="mode === 'js' ? 'اضغط «تشغيل» (أو Ctrl+Enter) لترى المخرجات هنا.' : 'لا مخرجات. استخدم console.log في script.js.'" @clear="clearConsole" @goto="gotoLine" />
+        <ConsolePanel v-show="consoleOpen || mode === 'js'" :logs="logs" :errors="errors" :empty="mode === 'js' ? 'اضغط «تشغيل» (أو Ctrl+Enter) لترى المخرجات هنا.' : mode === 'vue' ? 'لا مخرجات. استخدم console.log داخل App.vue.' : 'لا مخرجات. استخدم console.log في script.js.'" @clear="clearConsole" @goto="gotoLine" />
       </div>
     </section>
   </div>

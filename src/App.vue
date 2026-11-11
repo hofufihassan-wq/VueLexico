@@ -209,7 +209,6 @@ main { flex: 1; outline: none; }
 @media (max-width: 980px) {
   .only-mobile { display: flex !important; }
   .side { position: fixed; inset-block: 0; inset-inline-start: 0; transform: translateX(110%); transition: transform 240ms var(--ease); box-shadow: var(--glow); }
-  :global([dir='rtl']) .side { transform: translateX(110%); }
   .side.open { transform: none; }
   main { padding-bottom: 70px; }
   .toasts { bottom: 76px; }
