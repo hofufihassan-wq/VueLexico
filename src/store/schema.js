@@ -82,10 +82,10 @@ export function sanitize(input) {
         at: date(l.quiz.at),
       } : null
       const ex = isObj(l.exercise) ? {
-        code: typeof l.exercise.code === 'string' ? l.exercise.code.slice(0, MAX_CODE) : files(l.exercise.code),
+        files: files(l.exercise.files),
         passed: bool(l.exercise.passed),
         attempts: num(l.exercise.attempts, 0, 1e6, 0),
-        at: date(l.exercise.at),
+        hints: num(l.exercise.hints, 0, 20, 0),
       } : null
       return {
         status: oneOf(l.status, ['started', 'done'], 'started'),

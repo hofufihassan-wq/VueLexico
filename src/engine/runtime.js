@@ -244,7 +244,10 @@ export async function execute(code, meta, options = {}) {
     end() {
       const idx = stack.indexOf(G)
       if (idx !== -1) stack.splice(idx, 1)
-      pushEvent({ type: 'script-end' })
+      // لقطة نهائية للمتغيرات العامة: الخطوات تُسجَّل قبل تنفيذ كل جملة، فهذه تُظهر أثر الجملة الأخيرة
+      const heap = new Map()
+      const globals = G.get.map((g) => capture(g, heap))
+      pushEvent({ type: 'script-end', globals, heap: heapObj(heap) })
     },
     exportsGetter: null,
     exp(fn) { __t.exportsGetter = fn },
@@ -296,11 +299,14 @@ export async function execute(code, meta, options = {}) {
   const fakeSetTimeout = (cb, ms, ...args) => addTimer(cb, ms, args, false)
   const fakeSetInterval = (cb, ms, ...args) => addTimer(cb, ms, args, true)
 
+  // نحتفظ بـ then الأصلية: كل استخدامات المشغّل الداخلية تمر عبرها حتى لا تظهر في التتبّع كأنها من كود المستخدم
+  const origThen = Promise.prototype.then
+
   let microSeq = 0
   const fakeQueueMicrotask = (cb) => {
     const id = ++microSeq
     pushEvent({ type: 'micro-add', micro: id, name: fnName(cb), source: 'queueMicrotask' })
-    Promise.resolve().then(() => {
+    origThen.call(Promise.resolve(), () => {
       const prev = phase
       phase = 'micro'
       pushEvent({ type: 'micro-run', micro: id, name: fnName(cb), source: 'queueMicrotask' })
@@ -309,11 +315,14 @@ export async function execute(code, meta, options = {}) {
   }
 
   // ---------- تتبّع تفاعلات Promise ----------
-  const origThen = Promise.prototype.then
   let patched = false
   if (options.patchPromise && trace) {
     patched = true
     Promise.prototype.then = function (onF, onR) {
+      // نسجّل فقط ما يُسجَّل أثناء تنفيذ كود المستخدم (يوجد إطار على المكدس)؛
+      // أي then من خارج كود المستخدم (المشغّل نفسه أو بيئة الاختبار) يمر دون تتبّع.
+      const hasCb = typeof onF === 'function' || typeof onR === 'function'
+      if (!hasCb || stack.length === 0) return origThen.call(this, onF, onR)
       const id = ++microSeq
       const regLine = line
       const wrap = (cb, kind) => {
@@ -324,8 +333,7 @@ export async function execute(code, meta, options = {}) {
           return cb.call(this, v)
         }
       }
-      const isUser = typeof onF === 'function' || typeof onR === 'function'
-      if (isUser) pushEvent({ type: 'micro-add', micro: id, name: fnName(onF || onR), source: 'then', line: regLine })
+      pushEvent({ type: 'micro-add', micro: id, name: fnName(onF || onR), source: 'then', line: regLine })
       return origThen.call(this, wrap(onF, 'fulfilled'), wrap(onR, 'rejected'))
     }
   }
@@ -380,7 +388,7 @@ export async function execute(code, meta, options = {}) {
     const sandboxGlobal = Object.create(null)
     const p = runner(__t, fakeConsole, fakeSetTimeout, fakeSetInterval, clearTimer, clearTimer, fakeQueueMicrotask, sandboxGlobal, sandboxGlobal, undefined)
     phase = 'micro'
-    p.then(() => { mainDone = true; exportsObj = __t.exportsGetter ? __t.exportsGetter() : null }, (e) => { mainDone = true; reportError(e) })
+    origThen.call(p, () => { mainDone = true; exportsObj = __t.exportsGetter ? __t.exportsGetter() : null }, (e) => { mainDone = true; reportError(e) })
 
     await drain()
     await macrotask()
@@ -391,7 +399,8 @@ export async function execute(code, meta, options = {}) {
   }
 
   if (error) status = error.limit ? 'limit' : 'error'
-  pushEvent({ type: 'done', status })
+  const doneHeap = new Map()
+  pushEvent({ type: 'done', status, globals: trace ? G.get.map((g) => capture(g, doneHeap)) : undefined, heap: heapObj(doneHeap) })
   return {
     status,
     error,

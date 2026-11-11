@@ -8,6 +8,8 @@ const TYPES = {
   RangeError: 'خطأ في النطاق: قيمة خارج الحدود المسموحة.',
   LimitError: 'حماية التشغيل: أوقفنا الكود قبل أن يجمّد الصفحة.',
   TimeoutError: 'انتهت المهلة: الكود استغرق وقتًا أطول من المسموح.',
+  VueCompileError: 'خطأ في ترجمة المكوّن: مترجم Vue لم يستطع فهم القالب أو السكربت، فلم يُعرض المكوّن.',
+  SecurityError: 'خطأ أمان: المتصفح منع عملية غير مسموحة في هذه البيئة.',
   Error: 'خطأ أطلقه الكود نفسه (throw) أو مكتبة يستخدمها.',
 }
 
@@ -79,6 +81,13 @@ const RULES = [
   [/'return' outside of function/, () => ({ title: 'return خارج دالة', explain: 'الكلمة return تُستخدم داخل الدوال فقط.', hint: '' })],
   [/Unexpected end of input|missing \} /, () => ({ title: 'الكود انتهى قبل أوانه', explain: 'هناك قوس أو كتلة لم تُغلق.', hint: 'عدّ الأقواس { } و( ) وتأكد من إغلاق كل واحد منها.' })],
   [/Assigning to rvalue|Invalid left-hand side/, () => ({ title: 'إسناد إلى ما لا يقبل الإسناد', explain: 'الطرف الأيسر من = يجب أن يكون متغيرًا أو خاصية.', hint: 'إن كنت تقارن فاستخدم === بدلًا من =.' })],
+  [/localStorage|sessionStorage|The document is sandboxed|Access is denied for this document/i, () => ({ title: 'التخزين غير متاح في المعاينة', explain: 'المعاينة تعمل في بيئة معزولة بلا أصل (origin)، لذلك يمنع المتصفح localStorage فيها لحماية بيانات المنصة.', hint: 'الكود نفسه سيعمل في صفحة حقيقية. للتجربة هنا خزّن البيانات في متغير.' })],
+  [/Element is missing end tag|Invalid end tag/, () => ({ title: 'وسم غير مغلق في القالب', explain: 'مترجم Vue وجد عنصرًا بلا وسم إغلاق أو وسم إغلاق في غير مكانه. قوالب Vue أكثر صرامة من HTML العادي.', hint: 'تحقّق من أن كل وسم مفتوح أُغلق بالترتيب الصحيح.' })],
+  [/Interpolation end sign was not found/, () => ({ title: '{{ بلا }}', explain: 'بدأ إدراج نصي بـ {{ ولم يُغلق بـ }}.', hint: 'أغلق التعبير بـ }}.' })],
+  [/v-for has invalid expression|v-for.*alias/, () => ({ title: 'صيغة v-for غير صحيحة', explain: 'v-for يتوقع صيغة مثل: item in items أو (item, index) in items.', hint: '' })],
+  [/Component is missing template or render function/, () => ({ title: 'المكوّن بلا قالب', explain: 'لا يوجد <template> ولا دالة render، فلا يعرف Vue ماذا يعرض.', hint: 'أضف كتلة <template>.' })],
+  [/Failed to resolve component: (\S+)/, (m) => ({ title: `مكوّن غير معروف: ${m[1]}`, explain: 'استُخدم مكوّن في القالب لم يُستورد أو يُعرَّف في هذا الملف.', hint: 'عرّف المكوّن أو استورده في <script setup>.' })],
+  [/Property "(\w+)" was accessed during render but is not defined/, (m) => ({ title: `«${m[1]}» غير معرّف في المكوّن`, explain: 'القالب يستخدم اسمًا لم يُعرَّف في script setup (أو props/data).', hint: 'عرّفه في السكربت أو صحّح الإملاء.' })],
 ]
 
 export function explainError(err) {

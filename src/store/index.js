@@ -1,7 +1,7 @@
 // الحالة العامة للتطبيق + الحفظ التلقائي في localStorage.
 // - كل تغيير يُحفظ بعد 400ms من آخر تعديل، ويُحفظ فورًا عند إخفاء الصفحة أو إغلاقها.
 // - المزامنة بين التبويبات عبر حدث storage حتى لا يكتب تبويب فوق تقدّم آخر.
-import { reactive, watch, readonly } from 'vue'
+import { reactive, watch, readonly, toRaw } from 'vue'
 import { STORAGE_KEY, defaultState, migrate, exportBackup, parseBackup, scheduleReview, isDue, dayKey } from './schema.js'
 
 function readStorage() {
@@ -28,8 +28,8 @@ export function saveNow() {
   timer = null
   if (!saveStatus.available) return false
   try {
-    store.updatedAt = new Date().toISOString()
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(store))
+    // لا نعدّل store هنا: أي تعديل سيعيد تشغيل المراقب فيصنع حلقة حفظ لا تنتهي
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...toRaw(store), updatedAt: new Date().toISOString() }))
     saveStatus.state = 'saved'
     saveStatus.at = Date.now()
     saveStatus.error = ''

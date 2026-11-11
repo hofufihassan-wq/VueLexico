@@ -4,7 +4,7 @@ import { defaultState, sanitize, exportBackup, parseBackup, scheduleReview, isDu
 describe('storage schema', () => {
   it('round-trips a backup', () => {
     const s = defaultState()
-    s.lessons['html-01'] = { status: 'done', visitedAt: new Date().toISOString(), completedAt: new Date().toISOString(), quiz: { answers: [1, 0], score: 2, total: 2, at: null }, exercise: { code: '<p>x</p>', passed: true, attempts: 3, at: null }, note: 'ملاحظة' }
+    s.lessons['html-01'] = { status: 'done', visitedAt: new Date().toISOString(), completedAt: new Date().toISOString(), quiz: { answers: [1, 0], score: 2, total: 2, at: null }, exercise: { files: { html: '<p>x</p>' }, passed: true, attempts: 3, hints: 1 }, note: 'ملاحظة' }
     s.drafts.push({ id: 'd1', name: 'تجربة', mode: 'web', files: { html: '<h1>1</h1>', css: '', js: '' }, createdAt: s.createdAt, updatedAt: s.createdAt })
     const r = parseBackup(exportBackup(s))
     expect(r.ok).toBe(true)
